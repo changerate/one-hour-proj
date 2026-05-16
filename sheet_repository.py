@@ -2,7 +2,9 @@ import uuid
 from datetime import datetime, timezone
 
 import gspread
+from gspread.exceptions import APIError
 
+from debug_log import agent_log
 from models import Message
 
 
@@ -11,7 +13,32 @@ def open_sheet(
     spreadsheet_id: str,
     worksheet_name: str,
 ) -> gspread.Worksheet:
-    spreadsheet = client.open_by_key(spreadsheet_id)
+    # region agent log
+    agent_log(
+        "H4",
+        "sheet_repository.py:open_sheet",
+        "open_by_key_attempt",
+        {
+            "spreadsheet_id_len": len(spreadsheet_id),
+            "worksheet_name": worksheet_name,
+        },
+    )
+    # endregion
+    try:
+        spreadsheet = client.open_by_key(spreadsheet_id)
+    except APIError as exc:
+        # region agent log
+        agent_log(
+            "H1",
+            "sheet_repository.py:open_sheet",
+            "open_by_key_api_error",
+            {
+                "status_code": getattr(exc.response, "status_code", None),
+                "error_text": str(exc)[:200],
+            },
+        )
+        # endregion
+        raise
     return spreadsheet.worksheet(worksheet_name)
 
 
